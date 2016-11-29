@@ -24,13 +24,13 @@ import           Utilities
 
 data Track = Track {
   trackName       :: String,
-  trackMbid       :: Mbid,
+  trackMbid       :: Maybe Mbid,
   trackUrl        :: Url,
   trackStreamable :: Bool,
   trackArtist     :: String,
-  trackArtistMbid :: Mbid,
+  trackArtistMbid :: Maybe Mbid,
   trackAlbum      :: String,
-  trackAlbumMbid  :: Mbid,
+  trackAlbumMbid  :: Maybe Mbid,
   trackImage      :: Url
 } deriving (Eq, Show)
 
@@ -50,49 +50,38 @@ getTrackInfo artist track =
      putStrLn body
      return $ do Document _ root _ <- (rightToMaybe . parseText def . fromString) body
 
-                 -- TODO: Do not return Nothing for all missing data, just the suff we care about,
-                 --       i.e.: Add Maybe types to some Track fields
-
                  let Element name attrs nodes = root
                  guard $ name == "lfm"
 
-                 Element _ _ trackNodes <- findNamedElem "track" nodes
+                 Element _ _ trackNodes  <- findNamedElem "track" nodes
+                 Element _ _ artistNodes <- findNamedElem "artist" trackNodes
+                 Element _ _ albumNodes  <- findNamedElem "album" trackNodes
 
-                 nameElem       <- findNamedElem "name"       trackNodes
-                 nameText       <- elemContent nameElem
-                 mbidElem       <- findNamedElem "mbid"       trackNodes
-                 mbidText       <- elemContent mbidElem
-                 urlElem        <- findNamedElem "url"        trackNodes
-                 urlText        <- elemContent urlElem
-                 streamableElem <- findNamedElem "streamable" trackNodes
-                 streamableText <- elemContent streamableElem
+                 nameText           <- getElemString "name" trackNodes
+                 let mbidText       =  getElemString "mbid" trackNodes
+                 urlText            <- getElemString "url" trackNodes
+                 streamableText     <- getElemString "streamable" trackNodes
                  let streamableBool = streamableText == "1"
 
-                 Element _ _ artistNodes <- findNamedElem "artist" trackNodes
-                 artistNameElem <- findNamedElem "name" artistNodes
-                 artistText     <- elemContent artistNameElem
-                 artistMbidElem <- findNamedElem "mbid" artistNodes
-                 artistMbidText <- elemContent artistMbidElem
+                 artistText         <- getElemString "name" artistNodes
+                 let artistMbidText =  getElemString "mbid" artistNodes
 
-                 Element _ _ albumNodes <- findNamedElem "album" trackNodes
-                 albumTitleElem <- findNamedElem "title" albumNodes
-                 albumText      <- elemContent albumTitleElem
-                 albumMbidElem  <- findNamedElem "mbid" albumNodes
-                 albumMbidText  <- elemContent albumMbidElem
+                 albumText          <- getElemString "title" albumNodes
+                 let albumMbidText  =  getElemString "mbid" albumNodes
 
                  let imageNodes = findNamedElems "image" albumNodes
                  imageElem <- firstJust $ map (\v -> findElemWithAttrEq "size" v imageNodes) ["extralarge", "large", "medium", "small"]
                  imageText <- elemContent imageElem
 
                  return Track {
-                   trackName       = unpack nameText,
-                   trackMbid       = unpack mbidText,
-                   trackUrl        = unpack urlText,
+                   trackName       = nameText,
+                   trackMbid       = mbidText,
+                   trackUrl        = urlText,
                    trackStreamable = streamableBool,
-                   trackArtist     = unpack artistText,
-                   trackArtistMbid = unpack artistMbidText,
-                   trackAlbum      = unpack albumText,
-                   trackAlbumMbid  = unpack albumMbidText,
+                   trackArtist     = artistText,
+                   trackArtistMbid = artistMbidText,
+                   trackAlbum      = albumText,
+                   trackAlbumMbid  = albumMbidText,
                    trackImage      = unpack imageText
                  }
 
@@ -128,3 +117,7 @@ elemContent (Element _ _ nodes) = do node <- listToMaybe nodes
                                                NodeContent text -> Just text
                                                otherwise        -> Nothing
                                      return text
+
+
+getElemString :: Text -> [Node] -> Maybe String
+getElemString elemName nodes = fmap unpack $ findNamedElem elemName nodes >>= elemContent
