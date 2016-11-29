@@ -25,7 +25,6 @@ executable this-is-my-jam
                        blaze-html,
                        HTTP,
                        xml-conduit,
-                       xml-hamlet,
                        containers,
                        text
 

@@ -15,7 +15,6 @@ import           Data.String
 import           Data.Text       (Text, unpack)
 import           Network.HTTP
 import           Prelude         hiding (readFile, writeFile)
-import           Text.Hamlet.XML
 import           Text.XML
 
 import           LastFmSecrets
@@ -50,7 +49,7 @@ getTrackInfo artist track =
      putStrLn body
      return $ do Document _ root _ <- (rightToMaybe . parseText def . fromString) body
 
-                 let Element name attrs nodes = root
+                 let Element name _ nodes = root
                  guard $ name == "lfm"
 
                  Element _ _ trackNodes  <- findNamedElem "track" nodes
